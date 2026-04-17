@@ -1,114 +1,133 @@
-# Project: sshclient-wasm
+# sshclient-sftp-wasm — CLAUDE.md
 
-This is a Golang project that builds a WASM client for ssh on the browser.
+This is a **fork** of [VerdigrisTech/sshclient-wasm](https://github.com/VerdigrisTech/sshclient-wasm) extended with:
 
-It uses Golang's [golang.org/x/crypto/ssh package](https://pkg.go.dev/golang.org/x/crypto/ssh) which already implements the SSH client protocol. It also works with servers but this project is focused on building a client that can be used in the browser with WebSockets.
+- **SFTP support** (`pkg/sshclient/sftp.go`, `lib/sftp.ts`) via `github.com/pkg/sftp`.
+- **Mandatory host-key pinning** — `ssh.InsecureIgnoreHostKey()` is removed; callers MUST supply a `HostKeyPin` with a SHA256 fingerprint.
+- **PuTTY PPK detection** — pasting a `.ppk` private key produces a typed `PPKFormatError` with conversion guidance before any network I/O.
+- **Typed errors with stable codes** (`host-key-mismatch`, `auth-failed`, `ppk-not-supported`, etc.) surfaced both in Go (`ConnectError`) and TypeScript.
 
-The compiler target is WebAssembly. The build is done with GoReleaser.
+See `UPSTREAM.md` for the fork SHA, rebase checklist, and divergence summary.
 
-It should ultimately be an NPM package that can be imported as an ES module for use in frontend projects like Next.js.
+## Scope boundary (important)
+
+This library is **general-purpose** — it knows nothing about FHIR, healthcare, ELR, HL7, or any specific consumer. Public API speaks in primitives: hostnames, ports, credentials, `Uint8Array`, `HostKeyPin`, `Transport` interfaces.
+
+If you are about to add code that references `Communication`, `Organization`, `DiagnosticReport`, or any FHIR resource — it belongs in the consumer (e.g. `lumba-lab-portal`), not here. The only exception is in `test/integration/` test fixtures, where domain-neutral sample data is fine.
 
 ## Architecture
 
-The architecture is transport-agnostic, supporting multiple transport protocols including raw WebSockets and AWS IoT Secure Tunneling. The Transport Translation Layer provides a unified interface for different transport implementations.
-
 ```mermaid
 graph TB
-    subgraph "Browser Environment"
-        A["ES Module<br/>(TypeScript)"]
-        B["Transport Translation Layer"]
-        C["WASM Layer<br/>(Go SSH Client)"]
-
+    subgraph "Browser"
+        A["TypeScript API<br/>(lib/)"]
+        B["Transport Manager"]
+        C["Go WASM<br/>(pkg/sshclient)"]
         A --> B
         B <--> C
     end
 
     subgraph "Transport Implementations"
-        D["WebSocket Transport"]
-        E["AWS IoT Secure Tunnel<br/>Transport"]
-        F["Custom Transport<br/>(User-defined)"]
-
+        D["WebSocketTransport"]
+        E["AWS IoT Secure Tunnel"]
+        F["CustomTransport"]
         B --> D
         B --> E
         B --> F
     end
 
-    subgraph "Network Layer"
-        G["Direct WebSocket<br/>Connection"]
-        H["AWS IoT<br/>Secure Tunneling"]
-        I["Custom Protocol<br/>Endpoint"]
-
-        D <--> G
-        E <--> H
-        F <--> I
+    subgraph "Wire"
+        G["wss to a WS-TCP bridge<br/>(e.g. neelyxlabs/ws-tcp-bridge-worker)"]
     end
 
     subgraph "Destination"
-        J["SSH Server"]
-
-        G --> J
-        H --> J
-        I --> J
+        H["SSH / SFTP server"]
     end
+
+    D <--> G
+    G <--> H
 
     style A fill:#0277bd,color:#fff
     style B fill:#7b1fa2,color:#fff
     style C fill:#ef6c00,color:#fff
-    style D fill:#388e3c,color:#fff
-    style E fill:#388e3c,color:#fff
-    style F fill:#388e3c,color:#fff
-    style G fill:#d32f2f,color:#fff
-    style H fill:#d32f2f,color:#fff
-    style I fill:#d32f2f,color:#fff
-    style J fill:#424242,color:#fff
 ```
 
-### Key Components
+**Key insight**: browsers can't open raw TCP. A transport (typically `WebSocketTransport`) is always pointed at a bridge that translates WS↔TCP. The bridge can be chisel-on-a-container, AWS IoT Secure Tunneling, or a Cloudflare Worker using `cloudflare:sockets`. The library itself is transport-agnostic.
 
-1. **ES Module (TypeScript)**: The public API that applications import and use
-2. **Transport Translation Layer**: Bridges JavaScript transports with WASM, handling bidirectional data flow
-3. **WASM Layer**: Go implementation of SSH client protocol using `golang.org/x/crypto/ssh`
-4. **Transport Implementations**:
-   - **WebSocket Transport**: Direct WebSocket connections to SSH servers
-   - **AWS IoT Secure Tunnel Transport**: Implements AWS IoT protocol with frame encoding/decoding
-   - **Custom Transport**: User-definable transport for proprietary protocols
-5. **Network Layer**: The actual network connection (WebSocket, AWS IoT, etc.)
-6. **SSH Server**: The destination SSH server
+## Tech stack
 
-## Tech Stack
+- **Go** 1.24+ (WASM target)
+- **TypeScript** 5.5+
+- **Node** 22+, **pnpm** 10+
+- **Build**: `make wasm` for the binary; `pnpm run build:ts` for the TS wrapper.
+- **Test**: `make test` (runs `go test` + `pnpm test:run`).
 
-- Languages: Golang, TypeScript
-- Frameworks: Next.js, React
-- Build Tools: GoReleaser, Vite, Pnpm via Corepack
-- Tools: WebSocket
-- Testing: Vitest, GoTest
-- Platforms: Browser
+## Project layout
 
-## Project Structure
+This repo ships a single artifact: the `@neelyxlabs/sshclient-sftp-wasm` npm package. The companion WS-TCP bridge (a Cloudflare Worker that browser clients connect through) lives in a separate repo: [neelyxlabs/ws-tcp-bridge-worker](https://github.com/neelyxlabs/ws-tcp-bridge-worker). The bridge is protocol-agnostic and independently useful; keeping it separate gives it its own issue tracker, stars, and discoverability for non-SSH use cases.
 
-- `main.go`: The entry point for the Go compiler.
-- `pkg/sshclient/`: The SSH client implementation.
-- `lib/`: The TypeScript/JavaScript bindings.
-- `examples/`: Example applications.
-- `dist/`: The build output.
-- `node_modules/`: The Node.js dependencies.
-- `pnpm-lock.yaml`: The Pnpm lock file.
-- `package.json`: The NPM package configuration.
-- `README.md`: The project README.
-- `LICENSE`: The project license.
+```
+main.go                   // JS bindings (connect, send, disconnect, ...)
+sftp_bindings.go          // SFTP JS bindings + errorToJS helper
+pkg/sshclient/
+  client.go               // SSH client + host-key pinning + PPK detection
+  sftp.go                 // SFTP session (PutFile atomic rename, MkdirAll, Close)
+  transport.go            // Transport interface + JSTransport
+  interceptor.go          // packet interception
+  client_test.go          // unit tests for host-key / PPK / error classification
+  sftp_test.go            // unit tests for SFTP (in-memory sftp.NewServer)
+lib/
+  index.ts                // SSHClient class + connect/getServerFingerprint
+  sftp.ts                 // SFTPHandle
+  errors.ts               // typed error classes + wrapSSHError
+  transport.ts            // WebSocketTransport + CustomTransport
+  aws-iot-tunnel.ts       // AWS IoT Secure Tunneling transport
+  ...                     // framework shims (next, react, vite)
+test/integration/         // docker-compose (openssh) + Playwright; exercises library + bridge
+.github/workflows/
+  ci.yml                  // go tests + wasm compile-check + TS build/test
+  release.yml             // npm publish on tag v*
+Makefile                  // build, test, wasm, wasm-check targets
+package.json              // @neelyxlabs/sshclient-sftp-wasm
+UPSTREAM.md               // fork SHA + rebase checklist
+```
 
-## Development
+## Public API (do NOT break without a major version bump)
 
-### Prerequisites
+### TypeScript (npm `@neelyxlabs/sshclient-sftp-wasm`)
 
-- Go 1.23+
-- Node.js 22+
-- Pnpm 10+
+```ts
+import {
+  SSHClient,              // static methods: initialize, connect, getServerFingerprint
+  SSHSession,             // returned by connect(); has sftpOpen()
+  SFTPHandle,             // returned by sftpOpen(); has put, mkdir, close
+  WebSocketTransport,
+  CustomTransport,
+  HostKeyPin,
+  // Typed errors
+  HostKeyPinRequiredError,
+  HostKeyMismatchError,
+  PPKFormatError,
+  InvalidPrivateKeyError,
+  AuthFailedError,
+  TransportError,
+  InternalSSHError,
+} from "@neelyxlabs/sshclient-sftp-wasm";
+```
 
-### Running the Go code during development
+### Go
 
-Running the Go code during development can be done with `go run main.go`.
+`pkg/sshclient` is an internal implementation detail — consumers interact via the JS bindings, not the Go API. Go-level callers (e.g. unit tests) use `Client`, `ConnectionOptions`, `HostKeyPin`, `ConnectError`.
 
-### Building the WASM binary
+## Common tasks
 
-Use `goreleaser build --snapshot --clean`.
+- **Add a new JS binding**: add a `js.FuncOf` function in `sftp_bindings.go` (or `main.go` for non-SFTP); register it in `main.go`'s `main()` map; update `lib/index.ts` or `lib/sftp.ts`.
+- **Add a new error type**: add the `ConnectErrorCode` constant in `client.go`; handle it in `errorToJS` in `sftp_bindings.go` if context fields are needed; add a typed class in `lib/errors.ts` + map in `wrapSSHError`.
+- **Rebase upstream**: follow `UPSTREAM.md` checklist.
+- **Publish a new version**: bump `package.json` version; tag `v<version>` on `main`; the release workflow publishes.
+
+## Testing discipline
+
+- Every new Go function gets a test in `*_test.go`. Go tests run against native (non-WASM) builds because `pkg/sftp` and `x/crypto/ssh` client APIs compile for both targets.
+- Every WASM-only change must pass `make wasm-check` before merging.
+- End-to-end behavior (real network path including the bridge) is covered by `test/integration/` — these run in CI on every PR.

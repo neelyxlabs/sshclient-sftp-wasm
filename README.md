@@ -1,15 +1,24 @@
-# sshclient-wasm
+# sshclient-sftp-wasm
 
-WebAssembly-based SSH client for the browser with transport-agnostic architecture. Built with Go's `golang.org/x/crypto/ssh` package and compiled to WASM for browser usage.
+> **Fork notice**: This is a fork of [VerdigrisTech/sshclient-wasm](https://github.com/VerdigrisTech/sshclient-wasm) extended with **SFTP support**, **mandatory host-key pinning**, and **typed errors**. See [`UPSTREAM.md`](./UPSTREAM.md) for the fork SHA and divergence summary.
+
+Browser SSH + SFTP via WebAssembly, with transport-agnostic architecture. Built on Go's `golang.org/x/crypto/ssh` and `github.com/pkg/sftp`, compiled to WASM.
+
+## Companion: WS-TCP bridge
+
+Browsers cannot open raw TCP. Users of this library point their `WebSocketTransport` at a WebSocket-to-TCP bridge. We publish a general-purpose bridge as a separate repo: **[neelyxlabs/ws-tcp-bridge-worker](https://github.com/neelyxlabs/ws-tcp-bridge-worker)** — a ~60-line Cloudflare Worker with HMAC-signed URLs and a destination allowlist. It's protocol-agnostic and independently useful for any browser→TCP use case (Redis, raw SSH, databases, etc.).
+
+End-to-end integration tests in [`test/integration/`](./test/integration/) exercise this library together with the bridge.
 
 ## Features
 
-- 🔐 SSH client running entirely in the browser via WebAssembly
-- 🔌 Transport-agnostic architecture supporting multiple protocols
-- 🌐 Built-in support for WebSocket and AWS IoT Secure Tunneling
+- 🔐 SSH + SFTP client running entirely in the browser via WebAssembly
+- 📁 **SFTP: atomic file uploads** (temp-file + posix-rename), MkdirAll, Close
+- 🔒 **Mandatory host-key pinning** — no more `InsecureIgnoreHostKey`; `ssh.FingerprintSHA256`-based verification; `getServerFingerprint()` for TOFU flows
+- ⚠️ **Typed errors with stable codes** — `HostKeyMismatchError`, `PPKFormatError`, `AuthFailedError`, etc.; PuTTY `.ppk` keys detected client-side with conversion guidance
+- 🔌 Transport-agnostic architecture — WebSocket, AWS IoT Secure Tunneling, or custom
 - 📦 Packet-level send/receive hooks for monitoring and transformation
-- 🔄 Support for custom packet transformations (e.g., Protobuf encoding)
-- 🔑 Password and private key authentication
+- 🔑 Password and OpenSSH private key authentication
 - 📘 TypeScript support with full type definitions
 - 🚀 ES Module compatible for modern frontend frameworks
 
@@ -531,8 +540,8 @@ try {
 
 ```bash
 # Clone the repository
-git clone https://github.com/andrew/sshclient-wasm.git
-cd sshclient-wasm
+git clone https://github.com/neelyxlabs/sshclient-sftp-wasm.git
+cd sshclient-sftp-wasm
 
 # Install dependencies
 go mod download

@@ -6,7 +6,6 @@
 *.wasm
 
 # Go
-go.sum
 vendor/
 
 # Node

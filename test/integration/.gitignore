@@ -1,0 +1,7 @@
+node_modules/
+uploads/
+ssh-keys/ssh_host_ed25519_key
+ssh-keys/ssh_host_ed25519_key.pub
+playwright-report/
+test-results/
+.dev.vars

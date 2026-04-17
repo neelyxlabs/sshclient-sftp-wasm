@@ -1,0 +1,23 @@
+services:
+  sftp:
+    image: lscr.io/linuxserver/openssh-server:latest
+    container_name: sshclient-sftp-test
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=UTC
+      - PASSWORD_ACCESS=true
+      - USER_PASSWORD=testpass
+      - USER_NAME=testuser
+      - SUDO_ACCESS=false
+      - LOG_STDOUT=true
+    volumes:
+      # Mount a writable uploads dir we can inspect from the host.
+      - ./uploads:/home/testuser/uploads
+      # Mount a fixed host key so the fingerprint is stable across runs.
+      # generate.sh produces these; they're intentionally committed for CI reproducibility.
+      - ./ssh-keys/ssh_host_ed25519_key:/config/ssh_host_keys/ssh_host_ed25519_key:ro
+      - ./ssh-keys/ssh_host_ed25519_key.pub:/config/ssh_host_keys/ssh_host_ed25519_key.pub:ro
+    ports:
+      - "2222:2222"
+    restart: unless-stopped

@@ -4,11 +4,29 @@ import {
   WebSocketTransport,
   CustomTransport,
 } from "./transport";
+import { SFTPHandle } from "./sftp";
+import {
+  wrapSSHError,
+  HostKeyPin,
+  HostKeyPinRequiredError,
+} from "./errors";
 
 export type { Transport } from "./transport";
 export { WebSocketTransport, CustomTransport } from "./transport";
 export { SecureTunnelTransport, TunnelMessageType } from "./aws-iot-tunnel";
 export type { SecureTunnelConfig, TunnelMessage } from "./aws-iot-tunnel";
+export { SFTPHandle } from "./sftp";
+export {
+  HostKeyPinRequiredError,
+  HostKeyMismatchError,
+  PPKFormatError,
+  InvalidPrivateKeyError,
+  AuthFailedError,
+  TransportError,
+  InternalSSHError,
+  wrapSSHError,
+} from "./errors";
+export type { HostKeyPin, SSHErrorCode } from "./errors";
 
 export interface ConnectionOptions {
   host: string;
@@ -17,6 +35,17 @@ export interface ConnectionOptions {
   password?: string;
   privateKey?: string;
   timeout?: number;
+  /**
+   * REQUIRED for `SSHClient.connect()`. The server's host key SHA256
+   * fingerprint (OpenSSH format, e.g. "SHA256:abc..."). Connections
+   * without a pin fail with `HostKeyPinRequiredError` before any
+   * network I/O against the server.
+   *
+   * Use `SSHClient.getServerFingerprint()` for a one-shot fingerprint
+   * capture in first-run / TOFU approval flows — that path does not
+   * authenticate and does not need a pin.
+   */
+  hostKeyPin?: HostKeyPin;
 }
 
 export interface PacketMetadata {
@@ -53,6 +82,12 @@ export interface SSHSession {
   send: (data: Uint8Array) => Promise<void>;
   disconnect: () => Promise<void>;
   resizeTerminal: (cols: number, rows: number) => Promise<void>;
+  /**
+   * Open the SFTP subsystem over this SSH session. The returned
+   * `SFTPHandle` supports put/mkdir/close. Closing the handle tears
+   * down only the SFTP subsystem; call `disconnect()` to close SSH.
+   */
+  sftpOpen: () => Promise<SFTPHandle>;
 }
 
 // Asset path detection utilities
@@ -269,6 +304,15 @@ export class SSHClient {
       throw new Error("SSHClient not initialized. Call initialize() first.");
     }
 
+    // Fail fast, client-side, before any transport work: the library
+    // refuses to connect without a pin. This saves a round-trip and
+    // gives a cleaner stack trace than the WASM-side rejection.
+    if (!options.hostKeyPin || !options.hostKeyPin.sha256) {
+      throw new HostKeyPinRequiredError(
+        "ConnectionOptions.hostKeyPin is required. Use SSHClient.getServerFingerprint() for TOFU capture."
+      );
+    }
+
     // Set up the transport
     await this.transportManager.createTransport(transport);
 
@@ -294,25 +338,89 @@ export class SSHClient {
       : undefined;
 
     // Pass transport ID to WASM
-    const session = await this.wasmInstance.connect(
-      options,
-      transport.id,
-      jsCallbacks
-    );
+    let session: any;
+    try {
+      session = await this.wasmInstance.connect(
+        options,
+        transport.id,
+        jsCallbacks
+      );
+    } catch (e) {
+      // Close the transport we just opened so the caller doesn't leak a
+      // WebSocket on auth/host-key failure.
+      await this.transportManager.closeTransport(transport.id).catch(() => {});
+      throw wrapSSHError(e);
+    }
+
+    const wasmInstance = this.wasmInstance;
 
     return {
       sessionId: session.sessionId,
       send: async (data: Uint8Array) => {
-        await session.send(data);
+        try {
+          await session.send(data);
+        } catch (e) {
+          throw wrapSSHError(e);
+        }
       },
       disconnect: async () => {
-        await session.disconnect();
-        await this.transportManager.closeTransport(transport.id);
+        try {
+          await session.disconnect();
+        } finally {
+          await this.transportManager
+            .closeTransport(transport.id)
+            .catch(() => {});
+        }
       },
       resizeTerminal: async (cols: number, rows: number) => {
-        await session.resizeTerminal(cols, rows);
+        try {
+          await session.resizeTerminal(cols, rows);
+        } catch (e) {
+          throw wrapSSHError(e);
+        }
+      },
+      sftpOpen: async (): Promise<SFTPHandle> => {
+        try {
+          const res = await wasmInstance.sftpOpen(session.sessionId);
+          return new SFTPHandle(wasmInstance, res.sftpSessionId);
+        } catch (e) {
+          throw wrapSSHError(e);
+        }
       },
     };
+  }
+
+  /**
+   * Capture the server's host key fingerprint in a one-shot SSH handshake
+   * that deliberately does NOT authenticate. Intended for TOFU flows where
+   * a user needs to approve a server's key before pinning.
+   *
+   * The returned fingerprint can be stored (wherever the caller chooses —
+   * database, FHIR resource, localStorage) and supplied later as
+   * `ConnectionOptions.hostKeyPin`.
+   */
+  static async getServerFingerprint(
+    options: ConnectionOptions,
+    transport: Transport
+  ): Promise<HostKeyPin> {
+    if (!this.initialized) {
+      throw new Error("SSHClient not initialized. Call initialize() first.");
+    }
+    await this.transportManager.createTransport(transport);
+    await transport.connect();
+    try {
+      const res = await this.wasmInstance.getServerFingerprint(
+        options,
+        transport.id
+      );
+      return { algorithm: res.algorithm, sha256: res.sha256 };
+    } catch (e) {
+      throw wrapSSHError(e);
+    } finally {
+      await this.transportManager
+        .closeTransport(transport.id)
+        .catch(() => {});
+    }
   }
 
   static async disconnect(sessionId: string): Promise<void> {

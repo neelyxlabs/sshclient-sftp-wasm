@@ -1,7 +1,10 @@
 {
-  "name": "sshclient-wasm",
-  "version": "0.1.5",
-  "description": "WebAssembly-based SSH client for the browser with packet interception hooks",
+  "name": "@neelyxlabs/sshclient-sftp-wasm",
+  "version": "0.1.0",
+  "description": "Browser SSH + SFTP client via WebAssembly, with mandatory host-key pinning. Forked from VerdigrisTech/sshclient-wasm.",
+  "publishConfig": {
+    "access": "public"
+  },
   "main": "dist/index.cjs.js",
   "module": "dist/index.esm.js",
   "types": "dist/index.d.ts",
@@ -59,7 +62,7 @@
   "license": "BSD-3-Clause",
   "repository": {
     "type": "git",
-    "url": "https://github.com/VerdigrisTech/sshclient-wasm.git"
+    "url": "https://github.com/neelyxlabs/sshclient-sftp-wasm.git"
   },
   "devDependencies": {
     "@changesets/cli": "^2.29.8",

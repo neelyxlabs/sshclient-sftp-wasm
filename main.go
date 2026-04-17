@@ -6,20 +6,25 @@ import (
 	"fmt"
 	"syscall/js"
 
-	"github.com/andrew/sshclient-wasm/pkg/sshclient"
+	"github.com/neelyxlabs/sshclient-sftp-wasm/pkg/sshclient"
 )
 
 func main() {
 	fmt.Println("SSH Client WASM initialized v4 - async send/disconnect")
 
 	js.Global().Set("SSHClient", js.ValueOf(map[string]interface{}{
-		"connect":             js.FuncOf(connect),
-		"disconnect":          js.FuncOf(disconnect),
-		"send":                js.FuncOf(send),
-		"version":             js.FuncOf(version),
-		"createTransport":     js.FuncOf(createTransport),
-		"closeTransport":      js.FuncOf(closeTransport),
-		"injectTransportData": js.FuncOf(injectTransportData),
+		"connect":              js.FuncOf(connect),
+		"disconnect":           js.FuncOf(disconnect),
+		"send":                 js.FuncOf(send),
+		"version":              js.FuncOf(version),
+		"createTransport":      js.FuncOf(createTransport),
+		"closeTransport":       js.FuncOf(closeTransport),
+		"injectTransportData":  js.FuncOf(injectTransportData),
+		"getServerFingerprint": js.FuncOf(getServerFingerprint),
+		"sftpOpen":             js.FuncOf(sftpOpen),
+		"sftpPut":              js.FuncOf(sftpPut),
+		"sftpMkdir":            js.FuncOf(sftpMkdir),
+		"sftpClose":            js.FuncOf(sftpClose),
 	}))
 
 	select {}
@@ -92,7 +97,7 @@ func connect(this js.Value, args []js.Value) interface{} {
 
 		sessionID, err := client.Connect()
 		if err != nil {
-			reject.Invoke(js.ValueOf(err.Error()))
+			reject.Invoke(errorToJS(err))
 			return
 		}
 
@@ -273,6 +278,10 @@ func parseConnectionOptions(jsObj js.Value) sshclient.ConnectionOptions {
 
 	if timeout := jsObj.Get("timeout"); timeout.Type() != js.TypeUndefined {
 		options.Timeout = timeout.Int()
+	}
+
+	if pin := jsObj.Get("hostKeyPin"); pin.Type() == js.TypeObject {
+		options.HostKeyPin = parseHostKeyPin(pin)
 	}
 
 	return options
