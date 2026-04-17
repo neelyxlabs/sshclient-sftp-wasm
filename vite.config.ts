@@ -54,7 +54,7 @@ export default defineConfig(({ command, mode }) => {
       test: {
         globals: true,
         environment: 'jsdom',
-        exclude: ['test/integration/**', 'node_modules/**']
+        include: ['lib/**/*.{test,spec}.{ts,tsx}'],
       }
     };
   }
