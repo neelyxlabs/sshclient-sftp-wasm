@@ -30,5 +30,5 @@ Subscribe to:
 - **Mandatory host-key verification** (`ConnectWithPin`, `GetServerFingerprint`) — breaking change on the Go API. `InsecureIgnoreHostKey` is removed. Not a good fit for upstream without a backwards-compat shim.
 - **PPK detection** (typed `ErrPPKNotSupported`) — additive, candidate for upstream PR.
 - **Module path renamed** to `github.com/neelyxlabs/sshclient-sftp-wasm`.
-- **npm package renamed** to `@neelyxlabs/sshclient-sftp-wasm`.
+- **Package name** set to `@neelyxlabs/sshclient-sftp-wasm` in `package.json` (consumed via git URL, not published to npm).
 - **Companion bridge** — a separate repo [neelyxlabs/ws-tcp-bridge-worker](https://github.com/neelyxlabs/ws-tcp-bridge-worker) ships a Cloudflare Worker WS-TCP bridge. Not in this repo; no impact on upstream rebases.
