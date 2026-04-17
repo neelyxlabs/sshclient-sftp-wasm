@@ -51,11 +51,8 @@ export default defineConfig(({ command, mode }) => {
           outDir: 'dist'
         })
       ],
-      test: {
-        globals: true,
-        environment: 'jsdom',
-        include: ['lib/**/*.{test,spec}.{ts,tsx}'],
-      }
+      // Test config is in vitest.config.ts (vitest uses command:'serve',
+      // which hits the other branch; a dedicated file avoids the confusion).
     };
   }
 });
