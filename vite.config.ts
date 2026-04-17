@@ -53,7 +53,8 @@ export default defineConfig(({ command, mode }) => {
       ],
       test: {
         globals: true,
-        environment: 'jsdom'
+        environment: 'jsdom',
+        exclude: ['test/integration/**', 'node_modules/**']
       }
     };
   }
