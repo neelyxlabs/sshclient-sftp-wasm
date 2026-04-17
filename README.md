@@ -78,7 +78,7 @@ graph TB
 ## Installation
 
 ```bash
-npm install sshclient-wasm
+npm install github:neelyxlabs/sshclient-sftp-wasm
 ```
 
 ## Quick Start
@@ -86,7 +86,7 @@ npm install sshclient-wasm
 ### Installation & Setup
 
 ```bash
-npm install sshclient-wasm
+npm install github:neelyxlabs/sshclient-sftp-wasm
 ```
 
 **Copy WASM files to your public directory:**
@@ -101,27 +101,27 @@ npm install sshclient-wasm
 
 ```javascript
 // Next.js optimized
-import { initializeSSHClient, SSHClient, NextJSConfig } from "sshclient-wasm/next";
+import { initializeSSHClient, SSHClient, NextJSConfig } from "@neelyxlabs/sshclient-sftp-wasm/next";
 
 // Vite optimized
-import { initializeSSHClient, SSHClient, ViteConfig } from "sshclient-wasm/vite";
+import { initializeSSHClient, SSHClient, ViteConfig } from "@neelyxlabs/sshclient-sftp-wasm/vite";
 
 // React hooks and utilities
-import { useSSHClient, SSHClient } from "sshclient-wasm/react";
+import { useSSHClient, SSHClient } from "@neelyxlabs/sshclient-sftp-wasm/react";
 
 // Generic/universal import
-import { SSHClient } from "sshclient-wasm";
+import { SSHClient } from "@neelyxlabs/sshclient-sftp-wasm";
 ```
 
 ### Quick Initialization
 
 ```javascript
 // Framework-specific (auto-optimized)
-import { initializeSSHClient } from "sshclient-wasm/next";
+import { initializeSSHClient } from "@neelyxlabs/sshclient-sftp-wasm/next";
 await initializeSSHClient();
 
 // Or generic with auto-detection
-import { SSHClient } from "sshclient-wasm";
+import { SSHClient } from "@neelyxlabs/sshclient-sftp-wasm";
 await SSHClient.initialize();
 ```
 
@@ -130,7 +130,7 @@ await SSHClient.initialize();
 ### Basic WebSocket Connection
 
 ```javascript
-import { SSHClient, WebSocketTransport } from "sshclient-wasm";
+import { SSHClient, WebSocketTransport } from "@neelyxlabs/sshclient-sftp-wasm";
 
 // Simple initialization - auto-detects assets in public directory
 await SSHClient.initialize();
@@ -142,19 +142,28 @@ const transport = new WebSocketTransport(
   ["ssh"]
 );
 
-// Connect to SSH server
+// Connect to SSH server (hostKeyPin is REQUIRED)
 const session = await SSHClient.connect(
   {
     host: "example.com",
     port: 22,
     user: "username",
     password: "password",
+    hostKeyPin: {
+      algorithm: "ssh-ed25519",
+      sha256: "SHA256:your-server-fingerprint-here",
+    },
   },
   transport
 );
 
-// Send data
+// Interactive shell: send data
 await session.send(new Uint8Array([0x01, 0x02, 0x03]));
+
+// Or: SFTP file upload
+const sftp = await session.sftpOpen();
+await sftp.put("/upload/file.txt", new TextEncoder().encode("hello"));
+await sftp.close();
 
 // Disconnect
 await session.disconnect();
@@ -163,7 +172,7 @@ await session.disconnect();
 ### Next.js Example
 
 ```javascript
-import { initializeSSHClient, NextJSConfig } from "sshclient-wasm/next";
+import { initializeSSHClient, NextJSConfig } from "@neelyxlabs/sshclient-sftp-wasm/next";
 import { useEffect, useState } from "react";
 
 function SSHComponent() {
@@ -186,7 +195,7 @@ function SSHComponent() {
 }
 
 // Alternative: Use the React hook
-import { useSSHClient } from "sshclient-wasm/react";
+import { useSSHClient } from "@neelyxlabs/sshclient-sftp-wasm/react";
 
 function SSHComponentWithHook() {
   const { isInitialized, initError, isLoading } = useSSHClient();
@@ -202,8 +211,8 @@ function SSHComponentWithHook() {
 ### Vite/React Example
 
 ```javascript
-import { initializeSSHClient, ViteConfig } from "sshclient-wasm/vite";
-import { useSSHConnection } from "sshclient-wasm/react";
+import { initializeSSHClient, ViteConfig } from "@neelyxlabs/sshclient-sftp-wasm/vite";
+import { useSSHConnection } from "@neelyxlabs/sshclient-sftp-wasm/react";
 
 function ViteSSHComponent() {
   const { connect, disconnect, session, connectionState } = useSSHConnection();
@@ -235,7 +244,7 @@ function ViteSSHComponent() {
 ### AWS IoT Secure Tunnel Connection
 
 ```javascript
-import { SSHClient, SecureTunnelTransport } from "sshclient-wasm";
+import { SSHClient, SecureTunnelTransport } from "@neelyxlabs/sshclient-sftp-wasm";
 
 // Auto-initialize
 await SSHClient.initialize();
@@ -297,7 +306,7 @@ const session = await SSHClient.connect(
 ### Packet Transformation
 
 ```javascript
-import { PacketTransformer } from "sshclient-wasm";
+import { PacketTransformer } from "@neelyxlabs/sshclient-sftp-wasm";
 
 // Transform to/from Base64
 const base64 = PacketTransformer.toBase64(data);
@@ -322,7 +331,7 @@ cp node_modules/sshclient-wasm/dist/wasm_exec.js public/
 
 ```javascript
 // next.config.js
-import { NextJSConfig } from "sshclient-wasm/next";
+import { NextJSConfig } from "@neelyxlabs/sshclient-sftp-wasm/next";
 
 /** @type {import('next').NextConfig} */
 const nextConfig = NextJSConfig.getNextConfig({
@@ -360,7 +369,7 @@ module.exports = nextConfig;
 **3. Use in your components:**
 
 ```javascript
-import { initializeSSHClient, useSSHClient } from "sshclient-wasm/next";
+import { initializeSSHClient, useSSHClient } from "@neelyxlabs/sshclient-sftp-wasm/next";
 
 // Method 1: Direct initialization
 useEffect(() => {
@@ -388,7 +397,7 @@ cp node_modules/sshclient-wasm/dist/wasm_exec.js public/
 // vite.config.ts
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
-import { ViteConfig } from "sshclient-wasm/vite";
+import { ViteConfig } from "@neelyxlabs/sshclient-sftp-wasm/vite";
 
 export default defineConfig(ViteConfig.getViteConfig({
   plugins: [react()],
@@ -416,8 +425,8 @@ export default defineConfig({
 **3. Use in your components:**
 
 ```javascript
-import { initializeSSHClient } from "sshclient-wasm/vite";
-import { useSSHClient } from "sshclient-wasm/react";
+import { initializeSSHClient } from "@neelyxlabs/sshclient-sftp-wasm/vite";
+import { useSSHClient } from "@neelyxlabs/sshclient-sftp-wasm/react";
 
 // Method 1: Direct initialization
 useEffect(() => {
@@ -440,7 +449,7 @@ import {
   useSSHConnection,
   SSHClientProvider,
   withSSHClient
-} from "sshclient-wasm/react";
+} from "@neelyxlabs/sshclient-sftp-wasm/react";
 
 // Hook for initialization
 const { isInitialized, initError, isLoading } = useSSHClient();
@@ -464,7 +473,7 @@ const WrappedComponent = withSSHClient(YourComponent);
 **2. Initialize with custom options:**
 
 ```javascript
-import { SSHClient } from "sshclient-wasm";
+import { SSHClient } from "@neelyxlabs/sshclient-sftp-wasm";
 
 await SSHClient.initialize({
   publicDir: "/assets/", // Your public directory path
@@ -478,7 +487,7 @@ await SSHClient.initialize({
 ### Custom Paths
 
 ```javascript
-import { SSHClient } from "sshclient-wasm";
+import { SSHClient } from "@neelyxlabs/sshclient-sftp-wasm";
 
 await SSHClient.initialize({
   wasmPath: "/custom/path/sshclient.wasm",
@@ -492,7 +501,7 @@ await SSHClient.initialize({
 ### Asset Availability Testing
 
 ```javascript
-import { SSHClientHelpers } from "sshclient-wasm";
+import { SSHClientHelpers } from "@neelyxlabs/sshclient-sftp-wasm";
 
 // Test if assets are properly placed
 const { wasmAvailable, wasmExecAvailable } =
@@ -1035,7 +1044,7 @@ server: {
 #### Test Asset Availability
 
 ```typescript
-import { SSHClientHelpers } from "sshclient-wasm";
+import { SSHClientHelpers } from "@neelyxlabs/sshclient-sftp-wasm";
 
 const result = await SSHClientHelpers.testAssetAvailability(
   "/sshclient.wasm",
@@ -1049,7 +1058,7 @@ console.log("Exec available:", result.wasmExecAvailable);
 #### Check Framework Detection
 
 ```typescript
-import { SSHClientHelpers } from "sshclient-wasm";
+import { SSHClientHelpers } from "@neelyxlabs/sshclient-sftp-wasm";
 
 console.log("Detected framework:", SSHClientHelpers.detectFramework());
 console.log("Recommended paths:", SSHClientHelpers.getAssetPaths());
