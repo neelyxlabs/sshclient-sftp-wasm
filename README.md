@@ -54,7 +54,7 @@ const session = await SSHClient.connect(
   {
     host: "sftp.example.com",
     port: 22,
-    user: "elr-upload",
+    user: "deploy",
     password: "secret",
     hostKeyPin: {
       algorithm: "ssh-ed25519",
@@ -66,8 +66,8 @@ const session = await SSHClient.connect(
 
 // Upload a file via SFTP
 const sftp = await session.sftpOpen();
-await sftp.mkdir("/inbound/elr");
-await sftp.put("/inbound/elr/message.hl7", new TextEncoder().encode("MSH|^~\\&|..."));
+await sftp.mkdir("/inbound/data");
+await sftp.put("/inbound/data/report.csv", new TextEncoder().encode("id,value\n1,hello\n"));
 await sftp.close();
 
 await session.disconnect();
@@ -88,7 +88,7 @@ const pin = await SSHClient.getServerFingerprint(
 // pin = { algorithm: "ssh-ed25519", sha256: "SHA256:abc..." }
 
 // Verify this matches `ssh-keyscan -t ed25519 sftp.example.com` output,
-// then store it (database, config file, FHIR extension, localStorage — your choice).
+// then store it (database, config file, localStorage — your choice).
 ```
 
 On subsequent connections, pass the stored pin:
@@ -235,7 +235,7 @@ The WASM binary is ~6.8 MB uncompressed (~1.9 MB gzipped).
 
 ## COEP/COOP headers
 
-**Not required.** Go's `js/wasm` target is single-threaded and does not use `SharedArrayBuffer`. Do not add `Cross-Origin-Embedder-Policy` or `Cross-Origin-Opener-Policy` headers — they will break cross-origin resources from services like Medplum, Google Sign-In, and Sentry.
+**Not required.** Go's `js/wasm` target is single-threaded and does not use `SharedArrayBuffer`. Do not add `Cross-Origin-Embedder-Policy` or `Cross-Origin-Opener-Policy` headers — they will break cross-origin resources (API calls, third-party scripts, embedded content).
 
 ## License
 

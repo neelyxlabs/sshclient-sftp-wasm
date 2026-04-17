@@ -11,9 +11,7 @@ See `UPSTREAM.md` for the fork SHA, rebase checklist, and divergence summary.
 
 ## Scope boundary (important)
 
-This library is **general-purpose** — it knows nothing about FHIR, healthcare, ELR, HL7, or any specific consumer. Public API speaks in primitives: hostnames, ports, credentials, `Uint8Array`, `HostKeyPin`, `Transport` interfaces.
-
-If you are about to add code that references `Communication`, `Organization`, `DiagnosticReport`, or any FHIR resource — it belongs in the consumer (e.g. `lumba-lab-portal`), not here. The only exception is in `test/integration/` test fixtures, where domain-neutral sample data is fine.
+This library is **general-purpose**. Public API speaks in primitives only: hostnames, ports, credentials, `Uint8Array`, `HostKeyPin`, `Transport` interfaces. No domain-specific concepts belong in this codebase.
 
 ## Architecture
 

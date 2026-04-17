@@ -70,7 +70,7 @@ pnpm test
 - Loads the WASM.
 - Captures the fingerprint via `SSHClient.getServerFingerprint()`.
 - Re-connects with the captured pin.
-- Opens SFTP, `put`s a 50 KB payload to `/home/testuser/uploads/test.hl7`.
+- Opens SFTP, `put`s a 50 KB payload to `/home/testuser/uploads/test.bin`.
 - Closes.
 - Asserts the file appears in the mounted Docker volume.
 - Asserts NO `.tmp-` leftover files in the destination directory.

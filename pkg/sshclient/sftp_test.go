@@ -82,8 +82,8 @@ func TestSFTPSession_PutFile_AtomicRename_NoTempLeftover(t *testing.T) {
 	defer cleanup()
 
 	dir := t.TempDir()
-	target := filepath.Join(dir, "elr-msg.hl7")
-	payload := []byte("MSH|^~\\&|SENDER|LAB|RECV|DOH|20260416||ORU^R01|1|P|2.5.1\r")
+	target := filepath.Join(dir, "report.csv")
+	payload := []byte("id,name,value\n1,alpha,100\n2,beta,200\n")
 
 	if err := sess.PutFile(target, payload); err != nil {
 		t.Fatalf("PutFile: %v", err)
