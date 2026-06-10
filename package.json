@@ -39,6 +39,7 @@
     "build:wasm:dev": "goreleaser build --snapshot --clean",
     "build:wasm:release": "goreleaser build --clean --skip=validate",
     "build:ts": "vite build",
+    "prepare": "vite build",
     "build": "pnpm run build:wasm",
     "build:dev": "pnpm run build:wasm:dev",
     "build:release": "pnpm run build:wasm:release",
