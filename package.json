@@ -1,6 +1,6 @@
 {
   "name": "@neelyxlabs/sshclient-sftp-wasm",
-  "version": "0.1.0",
+  "version": "0.1.6",
   "description": "Browser SSH + SFTP client via WebAssembly, with mandatory host-key pinning. Forked from VerdigrisTech/sshclient-wasm.",
   "publishConfig": {
     "access": "public"
@@ -43,7 +43,7 @@
     "build:dev": "pnpm run build:wasm:dev",
     "build:release": "pnpm run build:wasm:release",
     "clean": "rm -rf dist/",
-    "prepublishOnly": "pnpm run build:release",
+    "prepublishOnly": "make wasm && pnpm run build:ts",
     "test": "vitest",
     "test:run": "vitest run",
     "dev": "pnpm build:dev && vite",
